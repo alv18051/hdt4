@@ -1,0 +1,177 @@
+---
+title: "hdt3"
+author: "Elean Rivas, Javier Alvarez"
+date: "2023-03-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ModelMetrics)
+library(tidyverse)
+library(corrplot)
+library(nortest)
+library(caret)
+library(hopkins)
+```
+
+```{r}
+casas <- read.csv("C:\\Users\\javie\\Desktop\\U\\2023f\\mineria\\hdt4\\train.csv")
+```
+
+##Analisis Exploratorio.
+
+```{r}
+summary(casas)
+str(casas)
+table(unlist(lapply(casas, class)))
+```
+Como podemos observar tenemos (luego de quitar el id) 43 variables de tipo char, y 37 variables de tipo int, siendo algunas de estas seran más utiles para nuestro trabajo, y las cuales vale 
+más la pena que sean estudiadas a profuncidad. 
+
+```{r grfBldngCss}
+barplot(casas$LotArea, xlab= "Lote", ylab = "M^2", main="Lote en M^2")
+```
+
+Podemos observar que la mayoria de casas se encuentra en o debajo de los 50,000 M^2, siendo la casa con mayor tamaño una casa con una extencion de de 2000,000M^2 
+
+```{r }
+plot(x = casas$LotArea, y= casas$SalePrice, xlab= "Tamaño", ylab= "Precio de venta", main = "Correlación entre tamaño y precio")
+abline(lm(casas$SalePrice ~ casas$LotArea), col = "blue")
+```
+Podemos observar que no existe una corelacion entre tamaño del lote y precio de venta de la casa, ya que las casas con tamaños similares de lotes cambian de precio y hay casas más costosas con tamaños de lotes más pequeños. 
+
+```{r }
+library(ggplot2)
+df <- as.data.frame(casas$HouseStyle)
+tipo <-casas$HouseStyle
+mostrar <- (ggplot(data=df, aes(x=tipo)) + geom_bar(stat="count", width=0.7, fill = "cyan")+theme_minimal())
+print(mostrar + ggtitle("Tipo de vivienda"))
+```
+Con este grafico podemos observar que el tipo de vivienda más comun es de 1 nivel
+
+```{r }
+
+
+plot(x = casas$YearBuilt, y= casas$SalePrice, xlab= "Año de construccion", ylab= "Precio de venta", main = "Correlación entre precio de la casa y su año de construccion")
+abline(lm(casas$SalePrice ~ casas$YearBuilt), col = "blue")
+```
+Con estos graficos podemos observar que existe una relacion entre el precio al que se venden las casas con respecto al año al que fueron construidas. 
+
+```{r }
+library(ggplot2)
+df <- as.data.frame(casas$X1stFlrSF)
+metros_cuadrados_primer_piso <- casas$X1stFlrSF
+mostrar <- ggplot(data=df, aes(x=metros_cuadrados_primer_piso)) + geom_bar(stat="count", width=0.7, fill = "cyan")+theme_minimal()
+print(mostrar + ggtitle("Metros cuadrados del primer piso"))
+plot(x = casas$X1stFlrSF, y= casas$SalePrice, xlab= "Total de mestros cuadrados del primer piso", ylab= "Precio de venta", main = "Correlación entre precio de venta y total de metros cuadrados \n del primer piso")
+abline(lm(casas$SalePrice ~ casas$X1stFlrSF), col = "blue")
+```
+
+Podemos observar que existe una relación entre el precio de venta y el tamaño en M^2 del primer piso de la casa. 
+
+```{r }
+library(ggplot2)
+df <- as.data.frame(casas$X2ndFlrSF)
+metros_cuadrados_segundo_piso <- casas$X2ndFlrSF
+mostrar <- ggplot(data=df, aes(x=metros_cuadrados_segundo_piso)) + geom_bar(stat="count", width=0.7, fill = "cyan")+theme_minimal()
+print(mostrar + ggtitle("Metros cuadrados segundo piso"))
+plot(x = casas$X2ndFlrSF, y= casas$SalePrice, xlab= "Total de mestros cuadrados del segundo piso", ylab= "Precio de venta", main = "Correlación entre precio de venta y total de metros cuadrados \n del segundo piso")
+abline(lm(casas$SalePrice ~ casas$X2ndFlrSF), col = "blue")
+```
+Como podemos observar, tambien existe una relacion entre el tamaño en M^2 del segundo nivel de una casa y su precio. 
+
+```{r }
+casas_num <- sapply(casas, is.numeric)
+casas_num <- select_if(casas, is.numeric)
+casas_num <- casas_num[complete.cases(casas_num),]
+casas_num <- scale(na.omit(casas_num))
+set.seed(123)
+hopkins(casas_num)
+dist_casas <- dist(casas_num)
+
+```
+
+Como podemos observar, el analisis de Hopkins del set produjo un resultado de 1, lo cual quiere decir que, al estar alejado de 0.5, es un set de datos al que si le puede realizar el agrupamiento. 
+```{r}
+casas$clasification <- ifelse(casas$SalePrice > 290000, "Caras", ifelse(casas$SalePrice>170000, "Intemedia", "Economicas"))
+table(casas$clasification)
+```
+
+```{r}
+library(dplyr)
+trainS <- sample_frac(casas, .7)
+testS <-setdiff(casas, trainS)
+drop <- c("LotFrontage", "Alley", "MasVnrType", "MasVnrArea", "BsmtQual", "BsmtCond", "BsmtExposure", "BsmtFinType1", "BsmtFinType2", "Electrical", "FireplaceQu", "GarageType", "GarageYrBlt", "GarageFinish", "GarageQual", "GarageCond", "PoolQC", "Fence", "MiscFeature")
+trainS <- trainS[, !(names(trainS) %in% drop)]
+testS <- testS[, !(names(testS) %in% drop)]
+```
+
+
+
+#2. Elabore un árbol de regresión para predecir el precio de las casas usando todas las variables. 
+```{r}
+library(rpart)
+library(rpart.plot)
+arbol_1 <- rpart(clasification ~ ., data = trainS)
+prp(arbol_1, main="", nn=TRUE, fallen.leaves = TRUE, shadow.col = "green", branch.lty = 3, branch = .5, faclen = 0, trace = 1, split.cex = 0.8, split.box.col = "lightblue", split.border.col = "blue", split.round = 0.5)
+```
+
+#3. Úselo para predecir y analice el resultado. ¿Qué tal lo hizo?
+
+#4. Haga, al menos, 3 modelos más cambiando el parámetro de la profundidad del árbol. ¿Cuál es el mejor modelo para predecir el precio de las casas? 
+```{r}
+library(rpart)
+library(rpart.plot)
+arbol_3 <- rpart(SalePrice ~ ., data = trainS)
+prp(arbol_3, main="", nn=TRUE, fallen.leaves = TRUE, shadow.col = "green", branch.lty = 3, branch = .5, faclen = 0, trace = 1, split.cex = 0.8, split.box.col = "lightblue", split.border.col = "blue", split.round = 0.5)
+```
+#5. Compare los resultados con el modelo de regresión lineal de la hoja anterior, ¿cuál lo hizo mejor? 
+
+#6. Dependiendo del análisis exploratorio elaborado cree una variable respuesta que le permita clasificar las casas en Económicas, 
+Intermedias o Caras. Los límites de estas clases deben tener un fundamento en la distribución de los datos de precios, y estar bien explicados 
+
+```{r}
+casas$clasification <- ifelse(casas$SalePrice > 290000, "Caras", ifelse(casas$SalePrice>170000, "Intemedia", "Economicas"))
+table(casas$clasification)
+```
+
+#7. Elabore  un  árbol  de  clasificación  utilizando  la  variable  respuesta  que  creó  en  el  punto 
+anterior.  Explique los resultados a los que llega. Muestre el modelo gráficamente. Recuerde 
+que la nueva variable respuesta es categórica, pero se generó a partir de los precios de las 
+casas, no incluya el precio de venta para entrenar el modelo. 
+
+```{r}
+library(rpart)
+library(rpart.plot)
+arbol_4 <- rpart(formula = clasification ~ ., data = trainS)
+rpart.plot(arbol_4)
+```
+#8. Utilice  el  modelo  con  el  conjunto  de  prueba  y  determine  la  eficiencia  del  algoritmo  para clasificar.  
+```{r}
+library(rpart)
+library(rpart.plot)
+testS <- testS[, !(names(testS) %in% drop)]
+arbol_5 <- rpart(SalePrice ~ ., data = testS)
+rpart.plot(arbol_5)
+```
+
+9. Haga un análisis de la eficiencia del algoritmo usando una matriz de confusión para el árbol de clasificación. Tenga en cuenta la efectividad, donde el algoritmo se equivocó más, donde se equivocó menos y la importancia que tienen los errores.
+
+```{r}
+library(caret)
+#prediccion_1 <- predict(arbol_1, newdata = set_prueba, type = "class")
+#confusionMatrix(prediccion_1, set_prueba[["clasificacion"]])
+```
+
+#10.  Entrene un modelo usando validación cruzada, prediga con él. ¿le fue mejor que al modelo anterior? 
+
+#11. Haga al menos, 3 modelos más cambiando la profundidad del árbol. ¿Cuál funcionó mejor? 
+
+#12.   Repita  los  análisis  usando  random  forest  como  algoritmo  de  predicción,  explique  sus resultados comparando ambos algoritmos. 
+```{r}
+library(randomForest)
+#modelo <- randomForest(clasification ~., data = set_entrenamiento)
+#prediccion_2 <- predict(modelo, set_prueba)
+#(mc <- with(datos.test,table(predicciones, clasification)))
+```
