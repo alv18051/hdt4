@@ -1,5 +1,5 @@
 ---
-title: "hdt3"
+title: "hdt4"
 author: "Elean Rivas, Javier Alvarez"
 date: "2023-03-02"
 output: html_document
@@ -16,7 +16,8 @@ library(hopkins)
 ```
 
 ```{r}
-casas <- read.csv("C:\\Users\\javie\\Desktop\\U\\2023f\\mineria\\hdt4\\train.csv")
+casas <- read.csv("./train.csv")
+
 ```
 
 ##Analisis Exploratorio.
@@ -118,7 +119,9 @@ prp(arbol_1, main="", nn=TRUE, fallen.leaves = TRUE, shadow.col = "green", branc
 ```
 
 #3. Úselo para predecir y analice el resultado. ¿Qué tal lo hizo?
-
+```{r}
+#predictions <- predict(arbol_1, newdata = casas2, type = "class")
+```
 #4. Haga, al menos, 3 modelos más cambiando el parámetro de la profundidad del árbol. ¿Cuál es el mejor modelo para predecir el precio de las casas? 
 ```{r}
 library(rpart)
@@ -128,8 +131,19 @@ prp(arbol_3, main="", nn=TRUE, fallen.leaves = TRUE, shadow.col = "green", branc
 ```
 #5. Compare los resultados con el modelo de regresión lineal de la hoja anterior, ¿cuál lo hizo mejor? 
 
+m_variableModel <- lm(salePrice ~ neighborhood + remodelated + roofStyle + overallQuality + overallCondition + garageArea + livingArea + yearBuilt, data=casas)
+
+predictMulti <- predict(m_variableModel, test_set, type="response")
+
+absErrorM <- abs(mean(predictMulti - test_set$salePrice))
+
 #6. Dependiendo del análisis exploratorio elaborado cree una variable respuesta que le permita clasificar las casas en Económicas, 
-Intermedias o Caras. Los límites de estas clases deben tener un fundamento en la distribución de los datos de precios, y estar bien explicados 
+Al hacer un summary, podemos determinar los límites superior e inferior de cada grupo, de modo que podemos ver claramente la división entre cada grupo de datos. Usando esta información, determinamos lo siguiente:
+
+Los precios se dividen de 251.000 a 538.000, lo que significa que cualquier casa por debajo de la primera se considera barata en relación con las demás, cualquier casa intermedia es intermedia y cualquier casa por encima de la segunda es cara.
+
+Por lo tanto, identificamos una nueva variable llamada "clasificación" en nuestra base de datos para poder etiquetar y ordenar cada casa según su rango de precios.
+
 
 ```{r}
 casas$clasification <- ifelse(casas$SalePrice > 290000, "Caras", ifelse(casas$SalePrice>170000, "Intemedia", "Economicas"))
@@ -165,6 +179,9 @@ library(caret)
 ```
 
 #10.  Entrene un modelo usando validación cruzada, prediga con él. ¿le fue mejor que al modelo anterior? 
+```{r}
+
+```
 
 #11. Haga al menos, 3 modelos más cambiando la profundidad del árbol. ¿Cuál funcionó mejor? 
 
